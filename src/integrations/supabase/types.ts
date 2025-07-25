@@ -14,7 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_user: boolean
+          message: string
+          message_type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_user?: boolean
+          message: string
+          message_type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_user?: boolean
+          message?: string
+          message_type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      medical_records: {
+        Row: {
+          created_at: string
+          diagnosis: string | null
+          doctor_name: string | null
+          extracted_text: string | null
+          id: string
+          image_url: string | null
+          medications: string[] | null
+          record_date: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diagnosis?: string | null
+          doctor_name?: string | null
+          extracted_text?: string | null
+          id?: string
+          image_url?: string | null
+          medications?: string[] | null
+          record_date?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diagnosis?: string | null
+          doctor_name?: string | null
+          extracted_text?: string | null
+          id?: string
+          image_url?: string | null
+          medications?: string[] | null
+          record_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      medicine_searches: {
+        Row: {
+          created_at: string
+          id: string
+          medicine_name: string
+          result_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          medicine_name: string
+          result_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          medicine_name?: string
+          result_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          age: number | null
+          created_at: string
+          current_diagnosis: string | null
+          current_medications: string[] | null
+          full_name: string | null
+          gender: string | null
+          id: string
+          location: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string
+          current_diagnosis?: string | null
+          current_medications?: string[] | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          location?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          created_at?: string
+          current_diagnosis?: string | null
+          current_medications?: string[] | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          location?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
