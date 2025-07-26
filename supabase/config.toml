@@ -1,1 +1,55 @@
 project_id = "ljyuklzmxsfmashvktpx"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+port = 54327
+image_transformation_enabled = true
+
+[auth]
+enabled = true
+port = 54328
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://ljyuklzmxsfmashvktpx.supabase.co"]
+jwt_expiry = 3600
+refresh_token_rotation_enabled = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+
+[edge_runtime]
+enabled = true
+port = 54329
+
+[[edge_runtime.env_vars]]
+name = "SUPABASE_URL"
+value = "http://127.0.0.1:54321"
+
+[[edge_runtime.env_vars]]
+name = "SUPABASE_SERVICE_ROLE_KEY"
+value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqeXVrbHpteHNmbWFzaHZrdHB4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzQ2MzM0MywiZXhwIjoyMDY5MDM5MzQzfQ.lXkgFRGKaVe-14ZSuDi9fOpMOFY-sH2QrW1NZUQm2jI"
+
+[[edge_runtime.env_vars]]
+name = "SUPABASE_ANON_KEY"
+value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqeXVrbHpteHNmbWFzaHZrdHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NjMzNDMsImV4cCI6MjA2OTAzOTM0M30.yTjgHSjBSNIxPk6Br_b434KZbxvkAk1Js8xS05C43_Y"
+
+[functions.process-medical-image]
+verify_jwt = false

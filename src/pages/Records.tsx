@@ -1,72 +1,178 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Upload, FileText, Calendar, User } from "lucide-react";
+import { Plus, Search, Upload, FileText, Calendar, User, CheckCircle, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
-const mockRecords = [
-  {
-    id: '1',
-    date: '2024-03-15',
-    type: 'Lab Report',
-    doctor: 'Dr. Sarah Johnson',
-    extractedText: 'Blood glucose: 95 mg/dL (Normal)\nHbA1c: 6.2% (Slightly elevated)\nCholesterol: 180 mg/dL (Normal)',
-    diagnosis: 'Pre-diabetes monitoring',
-    location: 'City Medical Center'
-  },
-  {
-    id: '2',
-    date: '2024-03-10',
-    type: 'Prescription',
-    doctor: 'Dr. Michael Chen',
-    extractedText: 'Lisinopril 10mg - Take once daily\nMetformin 500mg - Take twice daily with meals\nAtorvastatin 20mg - Take at bedtime',
-    diagnosis: 'Hypertension, Type 2 Diabetes',
-    location: 'Downtown Clinic'
-  },
-  {
-    id: '3',
-    date: '2024-02-28',
-    type: 'X-Ray Report',
-    doctor: 'Dr. Emily Rodriguez',
-    extractedText: 'Chest X-ray shows clear lung fields\nNo evidence of pneumonia or fluid accumulation\nHeart size within normal limits',
-    diagnosis: 'Routine checkup - Normal',
-    location: 'Regional Hospital'
-  }
-];
+interface MedicalRecord {
+  id: string;
+  title: string;
+  record_date: string;
+  doctor_name: string;
+  extracted_text: string;
+  diagnosis: string;
+  medications: string[];
+  created_at: string;
+}
+
+interface ProcessedData {
+  documentType: string;
+  doctorName: string;
+  clinicName: string;
+  documentDate: string;
+  extractedText: string;
+  medications: string[];
+  diagnosis: string;
+  keyFindings: string[];
+  recommendations: string;
+}
 
 export const Records = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
+  const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredRecords = mockRecords.filter(record =>
-    record.extractedText.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.type.toLowerCase().includes(searchTerm.toLowerCase())
+  useEffect(() => {
+    if (user) {
+      fetchRecords();
+    }
+  }, [user]);
+
+  const fetchRecords = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('medical_records')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRecords(data || []);
+    } catch (error) {
+      console.error('Error fetching records:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load medical records",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredRecords = records.filter(record =>
+    record.extracted_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.doctor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.diagnosis?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.title?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setProcessedData(null);
     }
   };
 
-  const handleUpload = async () => {
+  const handleProcessImage = async () => {
     if (!selectedFile) return;
     
-    setIsUploading(true);
+    setIsProcessing(true);
     
-    // Simulate upload and AI processing
-    setTimeout(() => {
-      setIsUploading(false);
-      setSelectedFile(null);
-      alert('Record uploaded successfully! AI extraction completed.');
-    }, 3000);
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+
+      const response = await fetch('https://ljyuklzmxsfmashvktpx.supabase.co/functions/v1/process-medical-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setProcessedData(result.extractedData);
+        toast({
+          title: "Success",
+          description: "Medical document processed successfully!"
+        });
+      } else {
+        throw new Error(result.error || 'Processing failed');
+      }
+    } catch (error) {
+      console.error('Error processing image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process the medical document",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
+
+  const handleSaveRecord = async () => {
+    if (!user || !processedData) return;
+    
+    try {
+      const { error } = await supabase
+        .from('medical_records')
+        .insert({
+          user_id: user.id,
+          title: processedData.documentType || 'Medical Record',
+          record_date: processedData.documentDate || new Date().toISOString().split('T')[0],
+          doctor_name: processedData.doctorName || '',
+          extracted_text: processedData.extractedText || '',
+          diagnosis: processedData.diagnosis || '',
+          medications: processedData.medications || []
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Medical record saved successfully!"
+      });
+
+      // Reset form and refresh records
+      setSelectedFile(null);
+      setProcessedData(null);
+      fetchRecords();
+    } catch (error) {
+      console.error('Error saving record:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save medical record",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRejectRecord = () => {
+    setProcessedData(null);
+    setSelectedFile(null);
+    toast({
+      title: "Record Rejected",
+      description: "The processed data was not saved"
+    });
+  };
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -81,7 +187,7 @@ export const Records = () => {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="view" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            View Records
+            View Records ({records.length})
           </TabsTrigger>
           <TabsTrigger value="add" className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
@@ -112,46 +218,53 @@ export const Records = () => {
                         <FileText className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <CardTitle className="text-lg">{record.type}</CardTitle>
+                        <CardTitle className="text-lg">{record.title}</CardTitle>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(record.date).toLocaleDateString()}
+                            {record.record_date ? new Date(record.record_date).toLocaleDateString() : 'No date'}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {record.doctor}
-                          </div>
+                          {record.doctor_name && (
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {record.doctor_name}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {record.location}
-                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-3">
-                    <div>
-                      <p className="text-sm font-medium text-foreground mb-1">Diagnosis:</p>
-                      <Badge variant="secondary">{record.diagnosis}</Badge>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm font-medium text-foreground mb-2">Extracted Information:</p>
-                      <div className="bg-muted/30 p-3 rounded-lg">
-                        <p className="text-sm whitespace-pre-line">{record.extractedText}</p>
+                    {record.diagnosis && (
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-1">Diagnosis:</p>
+                        <Badge variant="secondary">{record.diagnosis}</Badge>
                       </div>
-                    </div>
+                    )}
                     
-                    <div className="flex gap-2 pt-2">
-                      <Button variant="outline" size="sm">
-                        View Original
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        Share
-                      </Button>
-                    </div>
+                    {record.medications && record.medications.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-1">Medications:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {record.medications.map((med, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {med}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {record.extracted_text && (
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-2">Extracted Information:</p>
+                        <div className="bg-muted/30 p-3 rounded-lg">
+                          <p className="text-sm whitespace-pre-line">{record.extracted_text}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -192,13 +305,13 @@ export const Records = () => {
                   <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium mb-2">Upload Medical Document</h3>
                   <p className="text-muted-foreground mb-4">
-                    Drag and drop or click to select images of prescriptions, lab reports, X-rays, etc.
+                    Click to select images of prescriptions, lab reports, X-rays, etc.
                   </p>
                   <Button variant="outline">Choose File</Button>
                 </label>
               </div>
 
-              {selectedFile && (
+              {selectedFile && !processedData && (
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -212,11 +325,72 @@ export const Records = () => {
                         </div>
                       </div>
                       <Button
-                        onClick={handleUpload}
-                        disabled={isUploading}
+                        onClick={handleProcessImage}
+                        disabled={isProcessing}
                         variant="medical"
                       >
-                        {isUploading ? 'Processing...' : 'Upload & Extract'}
+                        {isProcessing ? 'Processing...' : 'Process Document'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {processedData && (
+                <Card className="bg-success/5 border-success/20">
+                  <CardHeader>
+                    <CardTitle className="text-success">Document Processed Successfully!</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium">Document Type:</p>
+                        <p className="text-sm text-muted-foreground">{processedData.documentType}</p>
+                      </div>
+                      
+                      {processedData.doctorName && (
+                        <div>
+                          <p className="text-sm font-medium">Doctor:</p>
+                          <p className="text-sm text-muted-foreground">{processedData.doctorName}</p>
+                        </div>
+                      )}
+                      
+                      {processedData.diagnosis && (
+                        <div>
+                          <p className="text-sm font-medium">Diagnosis:</p>
+                          <p className="text-sm text-muted-foreground">{processedData.diagnosis}</p>
+                        </div>
+                      )}
+                      
+                      {processedData.medications.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium">Medications:</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {processedData.medications.map((med, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {med}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div>
+                        <p className="text-sm font-medium">Extracted Text:</p>
+                        <div className="bg-muted/30 p-3 rounded-lg mt-1">
+                          <p className="text-sm whitespace-pre-line">{processedData.extractedText}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3 pt-4">
+                      <Button onClick={handleSaveRecord} className="flex-1">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Save to Records
+                      </Button>
+                      <Button onClick={handleRejectRecord} variant="outline" className="flex-1">
+                        <X className="h-4 w-4 mr-2" />
+                        Reject
                       </Button>
                     </div>
                   </CardContent>
@@ -228,8 +402,8 @@ export const Records = () => {
                 <ul className="text-sm text-info/80 space-y-1">
                   <li>• Upload images of your medical documents</li>
                   <li>• AI extracts key information automatically</li>
-                  <li>• Searchable text is stored with your record</li>
-                  <li>• Original images are securely saved</li>
+                  <li>• Review and confirm the extracted data</li>
+                  <li>• Save to your medical records</li>
                 </ul>
               </div>
             </CardContent>

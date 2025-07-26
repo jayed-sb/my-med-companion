@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,36 +26,140 @@ import {
 
 interface UserProfile {
   fullName: string;
-  age: number;
-  gender: string;
+  age: number | null;
+  gender: string | null;
   email: string;
   phone: string;
-  location: string;
+  location: string | null;
   emergencyContact: string;
-  currentDiagnosis: string;
+  currentDiagnosis: string | null;
   medications: string[];
   totalRecords: number;
 }
 
 export const Profile = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile>({
-    fullName: "Alex Johnson",
-    age: 34,
-    gender: "Male",
-    email: "alex.johnson@email.com",
-    phone: "+1 (555) 123-4567",
-    location: "Dhanmondi, Dhaka",
-    emergencyContact: "+1 (555) 987-6543",
-    currentDiagnosis: "Hypertension, Type 2 Diabetes",
-    medications: ["Lisinopril 10mg", "Metformin 500mg", "Atorvastatin 20mg"],
-    totalRecords: 12
+    fullName: "",
+    age: null,
+    gender: null,
+    email: "",
+    phone: "",
+    location: null,
+    emergencyContact: "",
+    currentDiagnosis: null,
+    medications: [],
+    totalRecords: 0
   });
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Here you would save to your backend
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+      fetchRecordsCount();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setProfile({
+          fullName: data.full_name || user.user_metadata?.full_name || user.email || "",
+          age: data.age,
+          gender: data.gender,
+          email: user.email || "",
+          phone: "",
+          location: data.location,
+          emergencyContact: "",
+          currentDiagnosis: data.current_diagnosis,
+          medications: data.current_medications || [],
+          totalRecords: 0
+        });
+      } else {
+        // Create initial profile
+        setProfile(prev => ({
+          ...prev,
+          fullName: user.user_metadata?.full_name || user.email || "",
+          email: user.email || ""
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load profile data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const fetchRecordsCount = async () => {
+    if (!user) return;
+    
+    try {
+      const { count, error } = await supabase
+        .from('medical_records')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      
+      setProfile(prev => ({ ...prev, totalRecords: count || 0 }));
+    } catch (error) {
+      console.error('Error fetching records count:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user.id,
+          full_name: profile.fullName,
+          age: profile.age,
+          gender: profile.gender,
+          location: profile.location,
+          current_diagnosis: profile.currentDiagnosis,
+          current_medications: profile.medications
+        });
+
+      if (error) throw error;
+
+      setIsEditing(false);
+      toast({
+        title: "Success",
+        description: "Profile updated successfully"
+      });
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast({
+        title: "Error", 
+        description: "Failed to save profile",
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   const healthStats = [
     { label: "Total Records", value: profile.totalRecords, icon: FileText },
@@ -75,10 +182,14 @@ export const Profile = () => {
             </Avatar>
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-foreground">{profile.fullName}</h1>
-              <p className="text-muted-foreground">{profile.age} years old • {profile.gender}</p>
+              <p className="text-muted-foreground">
+                {profile.age && `${profile.age} years old`} 
+                {profile.age && profile.gender && " • "} 
+                {profile.gender}
+              </p>
               <div className="flex items-center gap-2 mt-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{profile.location}</span>
+                <span className="text-sm text-muted-foreground">{profile.location || "Location not set"}</span>
               </div>
             </div>
             <Button
@@ -145,21 +256,25 @@ export const Profile = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="age">Age</Label>
-                  <Input
+                   <Input
                     id="age"
                     type="number"
-                    value={profile.age}
+                    value={profile.age || ""}
                     disabled={!isEditing}
-                    onChange={(e) => setProfile({...profile, age: parseInt(e.target.value)})}
+                    onChange={(e) => setProfile({...profile, age: e.target.value ? parseInt(e.target.value) : null})}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender</Label>
-                <Select disabled={!isEditing} value={profile.gender}>
+                <Select 
+                  disabled={!isEditing} 
+                  value={profile.gender || ""} 
+                  onValueChange={(value) => setProfile({...profile, gender: value})}
+                >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Male">Male</SelectItem>
@@ -201,7 +316,7 @@ export const Profile = () => {
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <Input
                     id="location"
-                    value={profile.location}
+                    value={profile.location || ""}
                     disabled={!isEditing}
                     onChange={(e) => setProfile({...profile, location: e.target.value})}
                     placeholder="Used for nearby doctor search"
@@ -234,8 +349,15 @@ export const Profile = () => {
               <div>
                 <Label className="text-sm font-medium text-foreground">Current Diagnosis</Label>
                 <div className="mt-2">
-                  <Badge variant="warning" className="mr-2 mb-2">Hypertension</Badge>
-                  <Badge variant="info" className="mr-2 mb-2">Type 2 Diabetes</Badge>
+                  {profile.currentDiagnosis ? (
+                    profile.currentDiagnosis.split(',').map((diagnosis, index) => (
+                      <Badge key={index} variant="secondary" className="mr-2 mb-2">
+                        {diagnosis.trim()}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No diagnosis recorded</p>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   Based on latest medical records (March 15, 2024)

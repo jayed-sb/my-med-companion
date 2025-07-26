@@ -1,10 +1,57 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, Heart, Clock, AlertCircle, FileText, MessageCircle } from "lucide-react";
 import medicalIcon from "@/assets/medical-icon.png";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 export const Home = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
+  const [recordsCount, setRecordsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
+
+  const fetchUserData = async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch profile data
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      setProfile(profileData);
+
+      // Fetch records count
+      const { count } = await supabase
+        .from('medical_records')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      setRecordsCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -40,7 +87,7 @@ export const Home = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Records</p>
-                <p className="text-xl font-semibold text-success">12</p>
+                <p className="text-xl font-semibold text-success">{recordsCount}</p>
               </div>
             </div>
           </CardContent>
@@ -56,23 +103,27 @@ export const Home = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Primary</span>
-            <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
-              Hypertension
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Secondary</span>
-            <Badge variant="outline" className="bg-info/10 text-info border-info/30">
-              Diabetes Type 2
-            </Badge>
-          </div>
-          <div className="pt-2">
-            <p className="text-xs text-muted-foreground">
-              Last updated: March 15, 2024
-            </p>
-          </div>
+          {profile?.current_diagnosis ? (
+            <div className="space-y-2">
+              {profile.current_diagnosis.split(',').map((diagnosis: string, index: number) => (
+                <div key={index} className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {index === 0 ? 'Primary' : 'Secondary'}
+                  </span>
+                  <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
+                    {diagnosis.trim()}
+                  </Badge>
+                </div>
+              ))}
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground">
+                  Last updated: {new Date(profile.updated_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No diagnosis recorded yet</p>
+          )}
         </CardContent>
       </Card>
 
@@ -86,29 +137,18 @@ export const Home = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-              <div>
-                <p className="font-medium">Lisinopril</p>
-                <p className="text-sm text-muted-foreground">10mg daily</p>
-              </div>
-              <Badge variant="success">Active</Badge>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-              <div>
-                <p className="font-medium">Metformin</p>
-                <p className="text-sm text-muted-foreground">500mg twice daily</p>
-              </div>
-              <Badge variant="success">Active</Badge>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-              <div>
-                <p className="font-medium">Atorvastatin</p>
-                <p className="text-sm text-muted-foreground">20mg bedtime</p>
-              </div>
-              <Badge variant="success">Active</Badge>
-            </div>
+            {profile?.current_medications && profile.current_medications.length > 0 ? (
+              profile.current_medications.map((medication: string, index: number) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <div>
+                    <p className="font-medium">{medication}</p>
+                  </div>
+                  <Badge variant="success">Active</Badge>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No medications recorded</p>
+            )}
           </div>
 
           <Button variant="outline" className="w-full mt-4">
@@ -119,14 +159,24 @@ export const Home = () => {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-4">
-        <Button variant="medical" size="lg" className="h-16">
+        <Button 
+          variant="medical" 
+          size="lg" 
+          className="h-16"
+          onClick={() => navigate('/app/records')}
+        >
           <div className="text-center">
             <FileText className="h-5 w-5 mx-auto mb-1" />
             <span className="text-sm">Add Record</span>
           </div>
         </Button>
         
-        <Button variant="outline" size="lg" className="h-16">
+        <Button 
+          variant="outline" 
+          size="lg" 
+          className="h-16"
+          onClick={() => navigate('/app/chat')}
+        >
           <div className="text-center">
             <MessageCircle className="h-5 w-5 mx-auto mb-1" />
             <span className="text-sm">Ask AI</span>
