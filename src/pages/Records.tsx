@@ -36,7 +36,7 @@ export const Records = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
@@ -50,7 +50,7 @@ export const Records = () => {
 
   const fetchRecords = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('medical_records')
@@ -91,13 +91,13 @@ export const Records = () => {
 
   const handleProcessImage = async () => {
     if (selectedFiles.length === 0) return;
-    
+
     setIsProcessing(true);
-    
+
     try {
       const formData = new FormData();
-      selectedFiles.forEach((file, index) => {
-        formData.append(`images`, file);
+      selectedFiles.forEach((file) => {
+        formData.append('files', file);
       });
 
       const response = await fetch('https://rational-bison-kind.ngrok-free.app/add-record', {
@@ -105,16 +105,21 @@ export const Records = () => {
         body: formData,
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
-      
-      if (result.success) {
-        setProcessedData(result.extractedData || result);
+
+      // Check if the response has the expected structure
+      if (result.documentType) {
+        setProcessedData(result);
         toast({
           title: "Success",
           description: "Medical document processed successfully!"
         });
       } else {
-        throw new Error(result.error || 'Processing failed');
+        throw new Error(result.error || 'Processing failed - Invalid response format');
       }
     } catch (error) {
       console.error('Error processing images:', error);
@@ -130,7 +135,7 @@ export const Records = () => {
 
   const handleSaveRecord = async () => {
     if (!user || !processedData) return;
-    
+
     try {
       const { error } = await supabase
         .from('medical_records')
@@ -247,7 +252,7 @@ export const Records = () => {
                         <Badge variant="secondary">{record.diagnosis}</Badge>
                       </div>
                     )}
-                    
+
                     {record.medications && record.medications.length > 0 && (
                       <div>
                         <p className="text-sm font-medium text-foreground mb-1">Medications:</p>
@@ -260,7 +265,7 @@ export const Records = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {record.extracted_text && (
                       <div>
                         <p className="text-sm font-medium text-foreground mb-2">Extracted Information:</p>
@@ -359,21 +364,21 @@ export const Records = () => {
                         <p className="text-sm font-medium">Document Type:</p>
                         <p className="text-sm text-muted-foreground">{processedData.documentType}</p>
                       </div>
-                      
+
                       {processedData.doctorName && (
                         <div>
                           <p className="text-sm font-medium">Doctor:</p>
                           <p className="text-sm text-muted-foreground">{processedData.doctorName}</p>
                         </div>
                       )}
-                      
+
                       {processedData.diagnosis && (
                         <div>
                           <p className="text-sm font-medium">Diagnosis:</p>
                           <p className="text-sm text-muted-foreground">{processedData.diagnosis}</p>
                         </div>
                       )}
-                      
+
                       {processedData.medications.length > 0 && (
                         <div>
                           <p className="text-sm font-medium">Medications:</p>
@@ -386,7 +391,7 @@ export const Records = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       <div>
                         <p className="text-sm font-medium">Extracted Text:</p>
                         <div className="bg-muted/30 p-3 rounded-lg mt-1">
@@ -394,7 +399,7 @@ export const Records = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-3 pt-4">
                       <Button onClick={handleSaveRecord} className="flex-1">
                         <CheckCircle className="h-4 w-4 mr-2" />
