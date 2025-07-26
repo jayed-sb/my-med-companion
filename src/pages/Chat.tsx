@@ -25,6 +25,45 @@ export const Chat = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleFindDoctors = async () => {
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('https://rational-bison-kind.ngrok-free.app/find-doctor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          location: 'user location', // You can get this from user's profile or ask
+          specialty: 'general'
+        }),
+      });
+
+      const result = await response.json();
+      
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        type: 'ai',
+        content: `Here are some doctors I found for you:\n\n${JSON.stringify(result, null, 2)}`,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Error finding doctors:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: 'ai',
+        content: 'Sorry, I had trouble finding doctors. Please try again later.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
 
@@ -77,7 +116,12 @@ export const Chat = () => {
       {/* Quick Action Buttons */}
       <div className="p-4 bg-muted/30">
         <div className="flex gap-2 overflow-x-auto">
-          <Button variant="outline" size="sm" className="flex items-center gap-2 whitespace-nowrap">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2 whitespace-nowrap"
+            onClick={() => handleFindDoctors()}
+          >
             <MapPin className="h-4 w-4" />
             Find Doctors
           </Button>

@@ -29,24 +29,26 @@ export const Medicine = () => {
     setMedicineInfo(null);
 
     try {
-      // Simulate API call to webhook (replace with actual webhook call)
-      setTimeout(() => {
-        // Mock response
-        const mockResponse: MedicineInfo = {
-          name: medicineName,
-          single_price: "5 BDT",
-          strip_price: "50 BDT",
-          dosage: "500mg twice daily",
-          usage: "Fever, mild pain relief",
-          side_effects: "Nausea, skin rash, stomach upset",
-          alternatives: ["Ace", "Calpol", "Fepanil", "Napa"]
-        };
-        
-        setMedicineInfo(mockResponse);
-        setIsLoading(false);
-      }, 2000);
+      const response = await fetch('https://rational-bison-kind.ngrok-free.app/med-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          medicine_name: medicineName
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success !== false) {
+        setMedicineInfo(result);
+      } else {
+        throw new Error(result.error || 'Medicine not found');
+      }
     } catch (err) {
       setError('Failed to fetch medicine information. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };

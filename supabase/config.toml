@@ -50,6 +50,3 @@ value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im
 [[edge_runtime.env_vars]]
 name = "SUPABASE_ANON_KEY"
 value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqeXVrbHpteHNmbWFzaHZrdHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NjMzNDMsImV4cCI6MjA2OTAzOTM0M30.yTjgHSjBSNIxPk6Br_b434KZbxvkAk1Js8xS05C43_Y"
-
-[functions.process-medical-image]
-verify_jwt = false

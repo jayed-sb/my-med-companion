@@ -36,7 +36,7 @@ export const Records = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
@@ -79,24 +79,28 @@ export const Records = () => {
     record.title?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+    const files = event.target.files;
+    if (files) {
+      setSelectedFiles(Array.from(files));
       setProcessedData(null);
     }
   };
 
   const handleProcessImage = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
     
     setIsProcessing(true);
     
     try {
       const formData = new FormData();
-      formData.append('image', selectedFile);
+      selectedFiles.forEach((file, index) => {
+        formData.append(`images`, file);
+      });
 
-      const response = await fetch('https://ljyuklzmxsfmashvktpx.supabase.co/functions/v1/process-medical-image', {
+      const response = await fetch('https://rational-bison-kind.ngrok-free.app/add-record', {
         method: 'POST',
         body: formData,
       });
@@ -104,7 +108,7 @@ export const Records = () => {
       const result = await response.json();
       
       if (result.success) {
-        setProcessedData(result.extractedData);
+        setProcessedData(result.extractedData || result);
         toast({
           title: "Success",
           description: "Medical document processed successfully!"
@@ -113,10 +117,10 @@ export const Records = () => {
         throw new Error(result.error || 'Processing failed');
       }
     } catch (error) {
-      console.error('Error processing image:', error);
+      console.error('Error processing images:', error);
       toast({
         title: "Error",
-        description: "Failed to process the medical document",
+        description: "Failed to process the medical documents",
         variant: "destructive"
       });
     } finally {
@@ -148,7 +152,7 @@ export const Records = () => {
       });
 
       // Reset form and refresh records
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setProcessedData(null);
       fetchRecords();
     } catch (error) {
@@ -163,7 +167,7 @@ export const Records = () => {
 
   const handleRejectRecord = () => {
     setProcessedData(null);
-    setSelectedFile(null);
+    setSelectedFiles([]);
     toast({
       title: "Record Rejected",
       description: "The processed data was not saved"
@@ -297,40 +301,48 @@ export const Records = () => {
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleFileSelect}
                   className="hidden"
                   id="file-upload"
                 />
                 <label htmlFor="file-upload" className="cursor-pointer">
                   <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Upload Medical Document</h3>
+                  <h3 className="text-lg font-medium mb-2">Upload Medical Documents</h3>
                   <p className="text-muted-foreground mb-4">
-                    Click to select images of prescriptions, lab reports, X-rays, etc.
+                    Click to select multiple images of prescriptions, lab reports, X-rays, etc.
                   </p>
                   <Button variant="outline">Choose File</Button>
                 </label>
               </div>
 
-              {selectedFile && !processedData && (
+              {selectedFiles.length > 0 && !processedData && (
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-medium">{selectedFile.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
-                          </p>
-                        </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">{selectedFiles.length} file(s) selected</h4>
+                        <Button
+                          onClick={handleProcessImage}
+                          disabled={isProcessing}
+                          variant="medical"
+                        >
+                          {isProcessing ? 'Processing...' : 'Process Documents'}
+                        </Button>
                       </div>
-                      <Button
-                        onClick={handleProcessImage}
-                        disabled={isProcessing}
-                        variant="medical"
-                      >
-                        {isProcessing ? 'Processing...' : 'Process Document'}
-                      </Button>
+                      <div className="space-y-2">
+                        {selectedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center gap-3 p-2 bg-background/50 rounded">
+                            <FileText className="h-4 w-4 text-primary" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{file.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(file.size / 1024 / 1024).toFixed(1)} MB
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
