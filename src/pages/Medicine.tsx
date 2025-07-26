@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Pill, DollarSign, AlertTriangle, Clock } from "lucide-react";
+import { Loader2, Search, Pill, DollarSign, AlertTriangle, Clock, BriefcaseMedical } from "lucide-react";
 
 interface MedicineInfo {
   name: string;
@@ -23,7 +22,7 @@ export const Medicine = () => {
 
   const handleSearch = async () => {
     if (!medicineName.trim()) return;
-    
+
     setIsLoading(true);
     setError('');
     setMedicineInfo(null);
@@ -40,7 +39,7 @@ export const Medicine = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success !== false) {
         setMedicineInfo(result);
       } else {
@@ -83,12 +82,12 @@ export const Medicine = () => {
                 placeholder="Enter medicine name (e.g., Paracetamol)"
                 value={medicineName}
                 onChange={(e) => setMedicineName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="pl-10"
               />
             </div>
-            <Button 
-              onClick={handleSearch} 
+            <Button
+              onClick={handleSearch}
               disabled={!medicineName.trim() || isLoading}
               variant="medical"
               className="px-6"
@@ -155,96 +154,95 @@ export const Medicine = () => {
       {/* Medicine Information */}
       {medicineInfo && (
         <div className="space-y-4">
-          {/* Basic Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Pill className="h-5 w-5 text-primary" />
-                {medicineInfo.name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Pricing */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-success/10 p-4 rounded-lg border border-success/20">
-                  <div className="flex items-center gap-2 mb-2">
+          {/* 2 Column Layout */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* 1st Column: Pricing, Dosage, Usage */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Pill className="h-5 w-5 text-primary" />
+                  {medicineInfo.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                {/* Single Price */}
+                <div className="bg-success/10 p-3 rounded-lg border border-success/20">
+                  <div className="flex items-center gap-2 mb-1">
                     <DollarSign className="h-4 w-4 text-success" />
                     <span className="text-sm font-medium text-success">Single Unit</span>
                   </div>
-                  <p className="text-2xl font-bold text-success">{medicineInfo.single_price}</p>
+                  <p className="text-lg font-bold text-success">৳{medicineInfo.single_price}</p>
                 </div>
-                
-                <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
-                  <div className="flex items-center gap-2 mb-2">
+
+                {/* Strip Price */}
+                <div className="bg-primary/10 p-3 rounded-lg border border-primary/20">
+                  <div className="flex items-center gap-2 mb-1">
                     <DollarSign className="h-4 w-4 text-primary" />
                     <span className="text-sm font-medium text-primary">Full Strip</span>
                   </div>
-                  <p className="text-2xl font-bold text-primary">{medicineInfo.strip_price}</p>
+                  <p className="text-lg font-bold text-primary">৳{medicineInfo.strip_price}</p>
                 </div>
-              </div>
 
-              {/* Dosage */}
-              <div className="bg-info/10 p-4 rounded-lg border border-info/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="h-4 w-4 text-info" />
-                  <span className="font-medium text-info">Recommended Dosage</span>
+                {/* Dosage */}
+                <div>
+                  <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-info" />
+                    <span className="text-info">Dosage</span>
+                  </h4>
+                  <p className="text-sm text-muted-foreground">{medicineInfo.dosage}</p>
                 </div>
-                <p className="text-info/80">{medicineInfo.dosage}</p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Usage & Effects */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Medical Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium text-foreground mb-2">Primary Usage:</h4>
-                <Badge variant="secondary" className="text-sm">{medicineInfo.usage}</Badge>
-              </div>
+            {/* 2nd Column: Side Effects, Alternatives */}
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                {/* Usage */}
+                <div>
+                  <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                    <BriefcaseMedical className="h-4 w-4 text-success" />
+                    <span className="text-success">Usage</span>
+                  </h4>
+                  <p className="text-sm text-muted-foreground">{medicineInfo.usage}</p>
+                </div>
+                {/* Side Effects */}
+                <div>
+                  <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <span className="text-warning">Side Effects</span>
+                  </h4>
+                  <p className="text-sm text-muted-foreground">{medicineInfo.side_effects}</p>
+                </div>
 
-              <div>
-                <h4 className="font-medium text-foreground mb-2">Possible Side Effects:</h4>
-                <div className="bg-warning/10 p-3 rounded-lg border border-warning/20">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-warning/80">{medicineInfo.side_effects}</p>
+                {/* Alternatives */}
+                {medicineInfo.alternatives && Array.isArray(medicineInfo.alternatives) && medicineInfo.alternatives.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-foreground mb-2">Alternatives:</h4>
+                    <div className="space-y-2">
+                      {medicineInfo.alternatives.map((alt, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMedicineName(alt.split(' (')[0])}
+                          className="w-full justify-start text-xs"
+                        >
+                          {alt}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Alternatives */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Alternative Medications</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {medicineInfo.alternatives.map((alt, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setMedicineName(alt)}
-                    className="justify-start"
-                  >
-                    {alt}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Disclaimer */}
           <Card className="bg-muted/30 border-muted">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">
-                <strong>Disclaimer:</strong> This information is for reference only. 
-                Always consult with a healthcare professional before taking any medication. 
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground">
+                <strong>Disclaimer:</strong> This information is for reference only.
+                Always consult with a healthcare professional before taking any medication.
                 Prices may vary by location and pharmacy.
               </p>
             </CardContent>
